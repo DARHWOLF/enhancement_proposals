@@ -81,10 +81,11 @@ Useful supporting methods for a first release include `add_chance_node`, `add_de
 ```python
 from pgmpy.base import CID
 
-model = CID(
+cid = CID(
     ebunch=[("U","X"), ("X","Y")],
     roles = {"chance": "X", "utilities"="U", "decisions"="Y"},
     )
+
 
 # add method for adding nodes
 
