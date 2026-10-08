@@ -32,9 +32,9 @@ Arcs into a chance node describe its conditional distribution. Arcs into a decis
 
 | Node role | Parameterization | Example |
 |---|---|---|
-| **Chance** | Probability distribution / CPD | \(P(X\mid Pa(X))\) |
-| **Decision** | Policy / decision rule | \(\pi(A\mid O)\) |
-| **Utility** | Utility function | \(U(X,A)\) |
+| **Chance** | Probability distribution / CPD | $P(X \mid Pa(X))$ |
+| **Decision** | Policy / decision rule | $\pi(A \mid Pa(A))$ |
+| **Utility** | Utility function | $U(X,A)$ |
 | **Unspecified** | None yet | `None` |
 
 Store parameterizations by utilizing pgmpy's existing parameterization functionalities
