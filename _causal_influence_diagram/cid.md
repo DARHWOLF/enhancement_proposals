@@ -6,27 +6,23 @@ This is the enhancement proposal for building the Causal Influence Diagram Class
 
 Add a `CausalInfluenceDiagram` class to pgmpy for representing causal decision problems. A causal influence diagram (CID) combines chance variables, decision variables, and utility variables in a directed acyclic graph. It makes the assumptions about causal dependencies and decision information explicit, and provides a basis for evaluating policies and selecting decisions.
 
-The proposed class would inherit from `pgmpy.base.DAG` and use the experimental parameterization API in `pgmpy.parameterization` for conditional distributions. The parameterization API is experimental, so the CID should depend on its public interface (`BaseParameter`, `fit`, `predict_proba`, and `sample`) rather than internal attributes.
-
-## Proposed architecture
-
-```python
-from pgmpy.base import DAG
+The proposed class would inherit from `pgmpy.base.DAG` and use the parameterization API in `pgmpy.parameterization` for conditional distributions. 
 
 
-class CausalInfluenceDiagram(DAG):
-    """A DAG with chance, decision, and utility variables."""
-```
-
-Each node has exactly one of the following roles:
+Each node of a causal influence diagram has exactly one of the following roles:
 
 - **Chance**: a random variable with a conditional distribution given its graph parents.
 - **Decision**: a choice controlled by a decision maker. Its parents represent information available when the decision is made.
 - **Utility**: a real-valued outcome, represented by a utility function of its parents. A utility node is not a random variable and has no probability distribution of its own.
 
-The graph remains acyclic and uses the existing `DAG` cycle validation. The class should track node roles using node attributes and expose convenient role properties such as `chance_nodes`, `decision_nodes`, and `utility_nodes`. Nodes can be declared at construction or through explicit add/set methods. Existing DAG operations should remain usable; adding an undeclared node may default to `chance` for compatibility with ordinary graph construction, or the API may require explicit roles from the outset. This default should be settled during implementation.
+The graph remains acyclic and uses the existing `DAG` cycle validation. The class should track node roles using node attributes and expose convenient role properties such as `chance_nodes`, `decision_nodes`, and `utility_nodes`. Nodes can be declared at construction or through explicit add/set methods. Existing DAG operations should remain usable.
 
-Arcs into a chance node describe its conditional distribution. Arcs into a decision node describe information available at decision time, not a probability model for the decision. Arcs into a utility node identify the variables used by its utility function. The initial implementation should validate graph structure and parameter assignments, but should not claim to solve arbitrary sequential decision problems until an evaluation algorithm is specified.
+- TO : DO should adding an undeclared node may default to `chance` for compatibility with ordinary graph construction? Or should the API require explicit roles from the outset. This default should be settled during implementation.
+
+Arcs into a chance node describe its conditional distribution. Arcs into a decision node describe information available at decision time
+Arcs into a utility node identify the variables used by its utility function. 
+
+- evaluate using backward induction algorithm 
 
 ## Parameterization 
 
@@ -39,11 +35,22 @@ Arcs into a chance node describe its conditional distribution. Arcs into a decis
 
 Store parameterizations by utilizing pgmpy's existing parameterization functionalities
 
-- Chance nodes accept fitted or unfitted `BaseParameter` implementations. The initial supported concrete classes are `TabularCPD` and `LinearGaussianCPD`.
+- Chance nodes accept `TabularCPD` 
 - Decision policies accept a conditional parameterization for the decision variable given its information parents. For discrete decisions, `TabularCPD` can represent stochastic policies. A deterministic policy can be represented by a small adapter implementing the same parameterization interface.
 - Utility nodes accept a callable that maps a DataFrame of parent assignments to one real utility per row. A table-backed utility can be added as a helper. Utility is kept distinct from probability parameterizations because current `pgmpy.parameterization` classes represent conditional distributions, not real-valued utility functions.
 
 For every assigned conditional parameterization, validate that its target matches the node and its `evidence_` variables match the graph parents (order-insensitively). The implementation should distinguish “not assigned” from an assigned but unfitted parameterization. Utility functions should be checked for finite numeric output when evaluated. Whether utilities are additive across utility nodes should be explicit; the proposal recommends summing their outputs.
+
+## Proposed architecture
+
+```python
+from pgmpy.base import DAG
+
+
+class CausalInfluenceDiagram(DAG):
+    """A DAG with chance, decision, and utility variables."""
+```
+
 
 ## Proposed methods
 
