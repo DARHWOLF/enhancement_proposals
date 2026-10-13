@@ -17,12 +17,12 @@ Each node of a causal influence diagram has exactly one of the following roles:
 
 The graph remains acyclic and uses the existing `DAG` cycle validation. The class should track node roles using node attributes and expose convenient role properties such as `chance_nodes`, `decision_nodes`, and `utility_nodes`. Nodes can be declared at construction or through explicit add/set methods. Existing DAG operations should remain usable.
 
-- TO : DO should adding an undeclared node may default to `chance` for compatibility with ordinary graph construction? Or should the API require explicit roles from the outset. This default should be settled during implementation.
+- Default nodes should have the `chance` role.
 
 Arcs into a chance node describe its conditional distribution. Arcs into a decision node describe information available at decision time
 Arcs into a utility node identify the variables used by its utility function. 
 
-- evaluate using backward induction algorithm 
+- Evaluate using backward induction algorithm. 
 
 ## Parameterization 
 
@@ -30,12 +30,12 @@ Arcs into a utility node identify the variables used by its utility function.
 |---|---|---|
 | **Chance** | Probability distribution / CPD | $P(X \mid Pa(X))$ |
 | **Decision** | Policy / decision rule | $\pi(A \mid Pa(A))$ |
-| **Utility** | Utility function | $U(X,A)$ |
+| **Utility** | Utility function | $U(X) = f(Pa(X))$ |
 | **Unspecified** | None yet | `None` |
 
 Store parameterizations by utilizing pgmpy's existing parameterization functionalities
 
-- Chance nodes accept `TabularCPD` 
+- Chance nodes should accept all the parameterization models from the `/parameterization` module  
 - Decision policies accept a conditional parameterization for the decision variable given its information parents. For discrete decisions, `TabularCPD` can represent stochastic policies. A deterministic policy can be represented by a small adapter implementing the same parameterization interface.
 - Utility nodes accept a callable that maps a DataFrame of parent assignments to one real utility per row. A table-backed utility can be added as a helper. Utility is kept distinct from probability parameterizations because current `pgmpy.parameterization` classes represent conditional distributions, not real-valued utility functions.
 
@@ -55,18 +55,21 @@ class CausalInfluenceDiagram(DAG):
 ## Proposed methods
 
 ```python
-def set_probabilities(self, node, parameterization): ...
+
 def set_policy(self, decision, policy): ...
 def set_utility(self, node, utility): ...
 ```
 
 ### `set_probabilities()`
+```python
+def set_probabilities(parameterization): ...
+```
 
-Assign the conditional distribution for a chance node. Accept a `BaseParameter` whose `variable_` names `node` and whose `evidence_` agrees with the graph parents. If fitting from data is later supported directly, it should be a separate method so assignment does not ambiguously imply fitting.
+- Assign the conditional distribution for a chance node. Accept a `BaseParameter` whose `variable_` names `node` and whose `evidence_` agrees with the graph parents. If fitting from data is later supported directly, it should be a separate method so assignment does not ambiguously imply fitting.
 
 ### `set_policy()`
 
-Assign the policy for a decision node. The policy's target is the decision, and its conditioning variables must be available information parents of that decision. An optional future API may expose policy optimization separately from policy assignment.
+Assign the policy for a decision node. Policy is a funtion that takes in values of the parent nodes and gives out the value of the decision node. This can also be represented using a DeterministicAdapter or a MAP query over the parameterization object.
 
 ### `set_utility()`
 
@@ -74,12 +77,13 @@ Assign a utility function to a utility node. The callable receives parent values
 
 Useful supporting methods for a first release include `add_chance_node`, `add_decision_node`, `add_utility_node`, and `get_*` accessors. They should follow existing pgmpy conventions for graph mutation and report clear errors for assigning a distribution, policy, or utility to the wrong kind of node.
 
-## Testing Plan
+## Validation checks during CID construction
 
-- test whether the graph is not acyclic
+- Enforce that no edges can be added to utility nodes given that utility nodes are always leaf nodes.
+
+## Testing Plan
 - Test role assignment, mutation, invalid role overlaps, and copying/subgraph behavior.
-- test: if utility is not empty then the node should not have children
-- test: intervention support do(x)
+- Test if we can sample from a defined CID given that parameters own the sampling logic.
 - test: to : do
 
 
