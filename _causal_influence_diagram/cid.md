@@ -31,7 +31,6 @@ Arcs into a utility node identify the variables used by its utility function.
 | **Chance** | Probability distribution / CPD | $P(X \mid Pa(X))$ |
 | **Decision** | Policy / decision rule | $\pi(A \mid Pa(A))$ |
 | **Utility** | Utility function | $U(X) = f(Pa(X))$ |
-| **Unspecified** | None yet | `None` |
 
 Store parameterizations by utilizing pgmpy's existing parameterization functionalities
 
@@ -51,28 +50,27 @@ class CausalInfluenceDiagram(DAG):
     """A DAG with chance, decision, and utility variables."""
 ```
 
-
 ## Proposed methods
 
-```python
-
-def set_policy(policy): ...
-def set_utility(utility): ...
-```
-
 ### `set_probabilities()`
+
 ```python
 def set_probabilities(parameterization): ...
 ```
-
 - Assign the conditional distribution for a chance node. Accept a parameterization object from the `/parameterization` module whose `variable_` names `node` and whose `evidence_` agrees with the graph parents. If fitting from data is later supported directly, it should be a separate method so assignment does not ambiguously imply fitting.
 
 ### `set_policy()`
 
+```python
+def set_policy(policy): ...
+```
 Assign the policy for a decision node. A policy takes values of the parent nodes as input and gives out values of the decision node. It can be represented using a `DeterministicAdapter` or a MAP query over a parameterization object.
 
 ### `set_utility()`
 
+```python
+def set_utility(utility): ...
+```
 Assign a utility function to a utility node. The callable receives parent values as a pandas DataFrame and returns a one-dimensional numeric result. A convenience form may accept a mapping from parent-state tuples to utility values for finite discrete domains.
 
 The inherited `add_node` method should accept a role attribute, defaulting to `chance`, and role accessors such as `chance_nodes`, `decision_nodes`, and `utility_nodes` should be provided. Assignment methods should report clear errors when a distribution, policy, or utility is assigned to the wrong kind of node.
