@@ -15,7 +15,7 @@ Each node of a causal influence diagram has exactly one of the following roles:
 - **Decision**: a choice controlled by a decision maker. Its parents represent information available when the decision is made.
 - **Utility**: a real-valued outcome, represented by a utility function of its parents. A utility node is not a random variable and has no probability distribution of its own.
 
-The graph remains acyclic and uses the existing `DAG` cycle validation. The class should track node roles using node attributes and expose convenient role properties such as `chance_nodes`, `decision_nodes`, and `utility_nodes`. Nodes can be declared at construction or through explicit add/set methods. Existing DAG operations should remain usable.
+The graph remains acyclic because it inherits the existing `DAG` cycle validation. The class should track node roles using node attributes and expose convenient role properties such as `chance_nodes`, `decision_nodes`, and `utility_nodes`. Nodes can be declared at construction or added through the inherited `add_node` method with a role attribute. Existing DAG operations should remain usable.
 
 - Default nodes should have the `chance` role.
 
@@ -35,7 +35,7 @@ Arcs into a utility node identify the variables used by its utility function.
 
 Store parameterizations by utilizing pgmpy's existing parameterization functionalities
 
-- Chance nodes should accept all the parameterization models from the `/parameterization` module  
+- Chance nodes should accept all the parameterization models from the `/parameterization` module.
 - Decision policies accept a conditional parameterization for the decision variable given its information parents. For discrete decisions, `TabularCPD` can represent stochastic policies. A deterministic policy can be represented by a small adapter implementing the same parameterization interface.
 - Utility nodes accept a callable that maps a DataFrame of parent assignments to one real utility per row. A table-backed utility can be added as a helper. Utility is kept distinct from probability parameterizations because current `pgmpy.parameterization` classes represent conditional distributions, not real-valued utility functions.
 
@@ -56,8 +56,8 @@ class CausalInfluenceDiagram(DAG):
 
 ```python
 
-def set_policy(self, decision, policy): ...
-def set_utility(self, node, utility): ...
+def set_policy(policy): ...
+def set_utility(utility): ...
 ```
 
 ### `set_probabilities()`
@@ -65,48 +65,46 @@ def set_utility(self, node, utility): ...
 def set_probabilities(parameterization): ...
 ```
 
-- Assign the conditional distribution for a chance node. Accept a `BaseParameter` whose `variable_` names `node` and whose `evidence_` agrees with the graph parents. If fitting from data is later supported directly, it should be a separate method so assignment does not ambiguously imply fitting.
+- Assign the conditional distribution for a chance node. Accept a parameterization object from the `/parameterization` module whose `variable_` names `node` and whose `evidence_` agrees with the graph parents. If fitting from data is later supported directly, it should be a separate method so assignment does not ambiguously imply fitting.
 
 ### `set_policy()`
 
-Assign the policy for a decision node. Policy is a funtion that takes in values of the parent nodes and gives out the value of the decision node. This can also be represented using a DeterministicAdapter or a MAP query over the parameterization object.
+Assign the policy for a decision node. A policy takes values of the parent nodes as input and gives out values of the decision node. It can be represented using a `DeterministicAdapter` or a MAP query over a parameterization object.
 
 ### `set_utility()`
 
 Assign a utility function to a utility node. The callable receives parent values as a pandas DataFrame and returns a one-dimensional numeric result. A convenience form may accept a mapping from parent-state tuples to utility values for finite discrete domains.
 
-Useful supporting methods for a first release include `add_chance_node`, `add_decision_node`, `add_utility_node`, and `get_*` accessors. They should follow existing pgmpy conventions for graph mutation and report clear errors for assigning a distribution, policy, or utility to the wrong kind of node.
+The inherited `add_node` method should accept a role attribute, defaulting to `chance`, and role accessors such as `chance_nodes`, `decision_nodes`, and `utility_nodes` should be provided. Assignment methods should report clear errors when a distribution, policy, or utility is assigned to the wrong kind of node.
 
 ## Validation checks during CID construction
 
-- Enforce that no edges can be added to utility nodes given that utility nodes are always leaf nodes.
+- Enforce during construction that utility nodes are leaves and therefore have no outgoing edges. A utility node may have incoming edges from the variables used by its utility function.
 
 ## Testing Plan
-- Test role assignment, mutation, invalid role overlaps, and copying/subgraph behavior.
-- Test if we can sample from a defined CID given that parameters own the sampling logic.
-- test: to : do
+- Test whether a defined CID can be sampled, since parameterization objects own the sampling logic.
+
+- Test that parameterization targets and evidence match their assigned node and graph parents.
 
 
 ## User Journey 
 
 ```python
-from pgmpy.base import CID
+from pgmpy.base import CausalInfluenceDiagram
 
-cid = CID(
-    ebunch=[("U","X"), ("X","Y")],
-    roles = {"chance": "X", "utilities"="U", "decisions"="Y"},
-    )
+cid = CausalInfluenceDiagram(
+    ebunch=[("Treatment", "Health"), ("Treatment", "PatientUtility"),
+            ("Health", "PatientUtility")],
+    chance_nodes=["Health"],
+    decision_nodes=["Treatment"],
+    utility_nodes=["PatientUtility"],
+)
 
 
-# add method for adding nodes
-
-cid.add_chance_node("Health")
-cid.add_decision_node("Treatment")
-cid.add_utility_node("PatientUtility")
-
-cid.add_edge("Treatment", "Health")
-cid.add_edge("Treatment", "PatientUtility")
-cid.add_edge("Health", "PatientUtility")
+# Nodes can also be added with the inherited add_node method. Nodes without a
+# role attribute default to chance.
+cid.add_node("Age")
+cid.add_node("Risk", role="chance")
 
 cid.set_probabilities(
     "Health",
@@ -126,13 +124,13 @@ cid.set_policy(
     ),
 )
 
-## llm draft 
 cid.set_utility(
     "PatientUtility",
-    lambda values: pd.Series(
-        [10 if health == "well" else 0 for health in values["Health"]]
-        - 2 * (values["Treatment"] == "drug"),
-        index=values.index,
+    DeterministicAdapter.from_values(
+        lambda values: pd.Series(
+            [10 if health == "well" else 0 for health in values["Health"]],
+            index=values.index,
+        ) - 2 * (values["Treatment"] == "drug")
     ),
 )
 ```
