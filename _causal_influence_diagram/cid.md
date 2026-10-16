@@ -75,15 +75,16 @@ Assign a utility function to a utility node. The callable receives parent values
 
 The inherited `add_node` method should accept a role attribute, defaulting to `chance`, and role accessors such as `chance_nodes`, `decision_nodes`, and `utility_nodes` should be provided. Assignment methods should report clear errors when a distribution, policy, or utility is assigned to the wrong kind of node.
 
-## Validation checks during CID construction
 
-- Enforce during construction that utility nodes are leaves and therefore have no outgoing edges. A utility node may have incoming edges from the variables used by its utility function.
+### `check_model()`
+
+- Similar to the Bayesian newtork classes for vaidating. The check_model would validate the model and the parameters.
+- Check that parameterization targets and evidence match their assigned node and graph parents.
+- Check that utility nodes are leaves and therefore have no outgoing edges. A utility node may have incoming edges from the variables used by its utility function.
+
 
 ## Testing Plan
 - Test whether a defined CID can be sampled, since parameterization objects own the sampling logic.
-
-- Test that parameterization targets and evidence match their assigned node and graph parents.
-
 
 ## User Journey 
 
